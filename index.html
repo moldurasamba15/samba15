@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Molduras Automáticas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .crop-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            overflow: hidden;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            margin: 0 auto;
+        }
+        
+        .crop-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .frame-option {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 3px solid transparent;
+        }
+        
+        .frame-option:hover {
+            transform: scale(1.05);
+        }
+        
+        .frame-option.selected {
+            border-color: #3b82f6;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+        
+        .result-canvas {
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body style="background-color: #e05364;" class="min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-white mb-2">🎭 Vamos fincar a raiz do Samba 15 nas redes sociais</h1>
+            <p class="text-white text-lg">Chame o povo daqui e junte com o povo de lá!</p>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8 max-w-4xl mx-auto">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">1. Faça o Upload da Sua Imagem</h2>
+                <input type="file" id="imageInput" accept="image/*" class="hidden">
+                <button onclick="document.getElementById('imageInput').click()" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors">
+                    📁 Escolher Imagem
+                </button>
+            </div>
+        </div>
+
+        <!-- Preview Section -->
+        <div id="cropSection" class="bg-white rounded-xl shadow-lg p-6 mb-8 max-w-4xl mx-auto hidden">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4 text-center">2. Preview da Imagem</h2>
+            <div class="text-center">
+                <div class="crop-container">
+                    <img id="cropImage" class="crop-image">
+                </div>
+                <p class="text-gray-600 mt-2">Crop automático 1:1 aplicado</p>
+            </div>
+        </div>
+
+        <!-- Frame Selection -->
+        <div id="frameSection" class="bg-white rounded-xl shadow-lg p-6 mb-8 max-w-4xl mx-auto hidden">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6 text-center">3. Escolha sua Moldura</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="frame-option rounded-lg p-4" data-frame="1">
+                    <img src="https://i.postimg.cc/vZKRV2k2/1.png" alt="Moldura 1" class="w-full h-48 object-cover rounded-lg mb-2">
+                    <p class="text-center font-medium text-gray-700">1</p>
+                </div>
+                <div class="frame-option rounded-lg p-4" data-frame="2">
+                    <img src="https://i.postimg.cc/5tQhqqM4/2.png" alt="Moldura 2" class="w-full h-48 object-cover rounded-lg mb-2">
+                    <p class="text-center font-medium text-gray-700">2</p>
+                </div>
+                <div class="frame-option rounded-lg p-4" data-frame="3">
+                    <img src="https://i.postimg.cc/fRynkQ20/3.png" alt="Moldura 3" class="w-full h-48 object-cover rounded-lg mb-2">
+                    <p class="text-center font-medium text-gray-700">3</p>
+                </div>
+            </div>
+            <div class="text-center mt-6">
+                <button id="generateBtn" class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-medium transition-colors">
+                    ✨ Gerar Imagem com Moldura
+                </button>
+            </div>
+        </div>
+
+        <!-- Result Section -->
+        <div id="resultSection" class="bg-white rounded-xl shadow-lg p-6 max-w-4xl mx-auto hidden">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6 text-center">4. Sua Imagem Está Pronta!</h2>
+            <div class="text-center">
+                <canvas id="resultCanvas" class="result-canvas mx-auto mb-6"></canvas>
+                <div class="space-y-4">
+                    <button id="downloadBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-lg font-medium transition-colors mr-4">
+                        💾 Baixar Imagem
+                    </button>
+                    <button id="newImageBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-8 py-3 rounded-lg font-medium transition-colors">
+                        🔄 Nova Imagem
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentImage = null;
+        let selectedFrame = null;
+
+        const imageInput = document.getElementById('imageInput');
+        const cropSection = document.getElementById('cropSection');
+        const frameSection = document.getElementById('frameSection');
+        const resultSection = document.getElementById('resultSection');
+        const cropImage = document.getElementById('cropImage');
+        const frameOptions = document.querySelectorAll('.frame-option');
+        const generateBtn = document.getElementById('generateBtn');
+        const resultCanvas = document.getElementById('resultCanvas');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const newImageBtn = document.getElementById('newImageBtn');
+
+        // Handle image upload
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentImage = new Image();
+                    currentImage.onload = function() {
+                        setupCropArea();
+                        cropSection.classList.remove('hidden');
+                        frameSection.classList.remove('hidden');
+                    };
+                    currentImage.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function setupCropArea() {
+            cropImage.src = currentImage.src;
+        }
+
+        // Frame selection
+        frameOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                frameOptions.forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+                selectedFrame = this.dataset.frame;
+            });
+        });
+
+        // Generate final image
+        generateBtn.addEventListener('click', function() {
+            if (!currentImage || !selectedFrame) {
+                alert('Por favor, selecione uma moldura primeiro!');
+                return;
+            }
+            
+            generateFinalImage();
+        });
+
+        function generateFinalImage() {
+            const canvas = resultCanvas;
+            const ctx = canvas.getContext('2d');
+            const size = 600; // Final image size
+            
+            canvas.width = size;
+            canvas.height = size;
+            
+            // Draw image with automatic 1:1 crop (center crop)
+            const minDimension = Math.min(currentImage.width, currentImage.height);
+            const cropX = (currentImage.width - minDimension) / 2;
+            const cropY = (currentImage.height - minDimension) / 2;
+            
+            ctx.drawImage(
+                currentImage,
+                cropX, cropY, minDimension, minDimension,
+                0, 0, size, size
+            );
+            
+            // Load and draw frame
+            const frameImg = new Image();
+            frameImg.crossOrigin = 'anonymous';
+            frameImg.onload = function() {
+                ctx.drawImage(frameImg, 0, 0, size, size);
+                resultSection.classList.remove('hidden');
+                resultSection.scrollIntoView({ behavior: 'smooth' });
+            };
+            
+            // Set frame source based on selection
+            const frameSources = {
+                '1': 'https://i.postimg.cc/vZKRV2k2/1.png',
+                '2': 'https://i.postimg.cc/5tQhqqM4/2.png',
+                '3': 'https://i.postimg.cc/fRynkQ20/3.png'
+            };
+            
+            frameImg.src = frameSources[selectedFrame];
+        }
+
+        // Download functionality
+        downloadBtn.addEventListener('click', function() {
+            const canvas = resultCanvas;
+            
+            // Create download link
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'imagem-com-moldura.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 'image/png');
+        });
+
+        // New image functionality
+        newImageBtn.addEventListener('click', function() {
+            // Reset everything
+            currentImage = null;
+            selectedFrame = null;
+            
+            cropSection.classList.add('hidden');
+            frameSection.classList.add('hidden');
+            resultSection.classList.add('hidden');
+            
+            frameOptions.forEach(opt => opt.classList.remove('selected'));
+            imageInput.value = '';
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'976eaf9082c1d7f6',t:'MTc1NjQ5ODE2My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
